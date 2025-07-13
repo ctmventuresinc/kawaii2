@@ -1,12 +1,16 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { useDropzone } from 'react-dropzone';
-import heic2any from 'heic2any';
 import styles from './page.module.css';
 
 export default function Home() {
   const [uploadedImage, setUploadedImage] = useState<string | null>(null);
+  const [isClient, setIsClient] = useState(false);
+
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
 
   const onDrop = useCallback(async (acceptedFiles: File[]) => {
     const file = acceptedFiles[0];
@@ -19,6 +23,8 @@ export default function Home() {
             file.name.toLowerCase().endsWith('.heic') || file.name.toLowerCase().endsWith('.heif')) {
           
           console.log('Converting HEIC file...');
+          // Dynamic import to avoid SSR issues
+          const heic2any = (await import('heic2any')).default;
           const convertedBlob = await heic2any({
             blob: file,
             toType: 'image/jpeg',
@@ -55,14 +61,35 @@ export default function Home() {
     },
     noClick: true,
     noKeyboard: true,
-    multiple: false
+    multiple: false,
+    disabled: !isClient
   });
 
   const handleButtonClick = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    open();
+    if (isClient) {
+      open();
+    }
   };
+
+  if (!isClient) {
+    return (
+      <div className={styles.container}>
+        <main className={styles.mainContent}>
+          <h1 className={styles.title}>
+            Kawaii App
+          </h1>
+          <p className={styles.subtitle}>
+            Loading...
+          </p>
+        </main>
+        <button className={styles.bottomButton}>
+          Loading...
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div className={styles.container} {...getRootProps()}>
