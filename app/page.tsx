@@ -2,26 +2,56 @@
 
 import { useState, useCallback } from 'react';
 import { useDropzone } from 'react-dropzone';
+import heic2any from 'heic2any';
 import styles from './page.module.css';
 
 export default function Home() {
   const [uploadedImage, setUploadedImage] = useState<string | null>(null);
 
-  const onDrop = useCallback((acceptedFiles: File[]) => {
+  const onDrop = useCallback(async (acceptedFiles: File[]) => {
     const file = acceptedFiles[0];
     if (file) {
-      const reader = new FileReader();
-      reader.onload = () => {
-        setUploadedImage(reader.result as string);
-      };
-      reader.readAsDataURL(file);
+      try {
+        let fileToProcess = file;
+        
+        // Check if it's a HEIC/HEIF file and convert it
+        if (file.type === 'image/heic' || file.type === 'image/heif' || 
+            file.name.toLowerCase().endsWith('.heic') || file.name.toLowerCase().endsWith('.heif')) {
+          
+          console.log('Converting HEIC file...');
+          const convertedBlob = await heic2any({
+            blob: file,
+            toType: 'image/jpeg',
+            quality: 0.8
+          }) as Blob;
+          
+          fileToProcess = new File([convertedBlob], file.name.replace(/\.(heic|heif)$/i, '.jpg'), {
+            type: 'image/jpeg'
+          });
+        }
+        
+        const reader = new FileReader();
+        reader.onload = () => {
+          setUploadedImage(reader.result as string);
+        };
+        reader.onerror = () => {
+          alert('Error reading file. Please try a different image format.');
+        };
+        reader.readAsDataURL(fileToProcess);
+        
+      } catch (error) {
+        console.error('Error processing file:', error);
+        alert('Error processing the image. Please try a different file.');
+      }
     }
   }, []);
 
   const { getRootProps, getInputProps, open } = useDropzone({
     onDrop,
     accept: {
-      'image/*': ['.jpeg', '.jpg', '.png', '.gif', '.bmp', '.webp', '.svg', '.heic', '.heif']
+      'image/*': ['.jpeg', '.jpg', '.png', '.gif', '.bmp', '.webp', '.svg'],
+      'image/heic': ['.heic'],
+      'image/heif': ['.heif']
     },
     noClick: true,
     noKeyboard: true,
